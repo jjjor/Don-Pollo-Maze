@@ -1,172 +1,229 @@
 import pygame
-from random import choice
-from stack import Stack
-
-RES = WIDTH, HEIGHT = 800, 600
-TILE = 50
-cols, rows, = WIDTH // TILE, HEIGHT // TILE
+import time
+from collections import deque
 
 pygame.init()
-sc = pygame.display.set_mode(RES)
-clock = pygame.time.Clock()
+pygame.mixer.init()
+victory_royale = pygame.mixer.Sound('sounds/victory_royale.wav')
+som_reproduzido = False
 
-
-class Cell:
-    def __init__(self, x, y):
-        self.x, self.y = x, y
-        self.walls = {'top': True, 'bottom': True, 'right': True, 'left': True}
-        self.visited = False
-
-    def draw_current_cell(self):
-        x, y = self.x * TILE, self.y * TILE
-        pygame.draw.rect(sc, pygame.Color('grey'), (x + 2, y + 2, TILE - 2, TILE - 2))
-
-    # def draw(self):
-    #     x, y = self.x * TILE, self.y * TILE
-    #     if self.visited:
-    #         pygame.draw.rect(sc, pygame.Color('black'), (x, y, TILE, TILE))
-
-    #     if self.walls['top']:
-    #         pygame.draw.line(sc, pygame.Color('blue'), (x, y), (x + TILE, y), 2)
-    #     if self.walls['right']:
-    #         pygame.draw.line(sc, pygame.Color('blue'), (x + TILE, y), (x + TILE, y + TILE), 2)
-    #     if self.walls['bottom']:
-    #         pygame.draw.line(sc, pygame.Color('blue'), (x + TILE, y + TILE), (x, y + TILE), 2)
-    #     if self.walls['left']:
-    #         pygame.draw.line(sc, pygame.Color('blue'), (x, y + TILE), (x, y), 2)
-
-    def check_cell(self, x, y):
-        find_index = lambda x, y: x + y * cols
-        if x < 0 or x > cols - 1 or y < 0 or y > rows - 1:
-            return False
-        return grid_cells[find_index(x, y)]
-    
-    def check_neighbors(self):
-        neighbors = []
-        top = self.check_cell(self.x, self.y - 1)
-        right = self.check_cell(self.x + 1, self.y)
-        bottom = self.check_cell(self.x, self.y + 1)
-        left = self.check_cell (self.x - 1, self.y)
-        
-        if top and not top.visited:
-            neighbors.append(top)
-        if right and not right.visited:
-            neighbors.append(right)
-        if bottom and not bottom.visited:
-            neighbors.append(bottom)
-        if left and not left.visited:
-            neighbors.append(left)
-        return choice(neighbors) if neighbors else False
-    
-    # Função para calcular a direção da célula em relação à saída
-def direction_to_exit(self, exit_cell):
-    dx = self.x - exit_cell.x
-    dy = self.y - exit_cell.y
-
-    if dx == 1:
-        return 'left'
-    elif dx == -1:
-        return 'right'
-    elif dy == 1:
-        return 'top'
-    elif dy == -1:
-        return 'bottom'
-    
-def remove_walls(current, next):
-    dx = current.x - next.x
-    if dx == 1:
-        current.walls['left'] = False
-        next.walls['right'] = False
-    elif dx == -1:
-        current.walls['right'] = False
-        next.walls['left'] = False
-    dy = current.y - next.y
-    if dy == 1:
-        current.walls['top'] = False
-        next.walls['bottom'] = False
-    elif dy == -1:
-        current.walls['bottom'] = False
-        next.walls['top'] = False
+directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
 
 def load_maze_from_file(filename):
-    with open(filename, "r") as file:
-        maze_text = file.read()
+    maze = []
+    positionRX, positionRY = 0, 0
+    positionCX, positionCY = 0, 0
 
-    maze_lines = maze_text.split("\n")
-    maze_cells = [list(line) for line in maze_lines if line]
+    with open(filename, 'r') as file:
+        for i, line in enumerate(file):
+            row = []
+            for j, char in enumerate(line.strip()):
+                if char == '0':
+                    row.append(0)
+                elif char == '1':
+                    row.append(1)
+                elif char == 'm':
+                    row.append(2)
+                    positionRX, positionRY = j, i
+                elif char == 'c':
+                    row.append(3)
+                    positionCX, positionCY = j, i
+            maze.append(row)
+    h = len(maze)
+    w = len(maze[0])
+    return maze, h, w, positionRX, positionRY, positionCX, positionCY
 
-    return maze_cells
+maze, h, w, positionRX, positionRY, positionCX, positionCY = load_maze_from_file('labirinto.txt')
 
-maze_cells = load_maze_from_file("labirinto.txt")
+cell_size = min(1200 // w, 720 // h)
+width = w * cell_size
+height = h * cell_size
 
-def draw_maze(maze_cells):
-    for y, row in enumerate(maze_cells):
-        for x, cell in enumerate(row):
-            if cell == "0":
-                pygame.draw.line(sc, pygame.Color('blue'), (x * TILE, y * TILE), (x * TILE + TILE, y * TILE), 2)
-                pygame.draw.line(sc, pygame.Color('blue'), (x * TILE + TILE, y * TILE), (x * TILE + TILE, y * TILE + TILE), 2)
-                pygame.draw.line(sc, pygame.Color('blue'), (x * TILE + TILE, y * TILE + TILE), (x * TILE, y * TILE + TILE), 2)
-                pygame.draw.line(sc, pygame.Color('blue'), (x * TILE, y * TILE + TILE), (x * TILE, y * TILE), 2)
-            elif cell == "0":
-                pygame.draw.line(sc, pygame.Color('blue'), (x * TILE, y * TILE), (x * TILE, y * TILE + TILE), 2)
-            elif cell == "1":
-                pygame.draw.line(sc, pygame.Color('blue'), (x * TILE, y * TILE), (x * TILE + TILE, y * TILE), 2)
+pygame.display.set_caption('RUN FOR THE SCARLORD')
 
-maze_cells = load_maze_from_file("labirinto.txt")
+size = (width, height)
+screen = pygame.display.set_mode(size)
+
+largura_imagem = 200
+altura_imagem = 100
+imagem_fim_jogo = pygame.image.load("imgs/vitoria.png")
+imagem_fim_jogo = pygame.transform.scale(imagem_fim_jogo, (largura_imagem, altura_imagem))
+
+
+
+# background screen color
+color = (1,0,0)
+ground_image = pygame.image.load('imgs/ground.png')
+
+rat_image = pygame.image.load('imgs/fortnite.png')
+cheeseImage = pygame.image.load('imgs/scar.png')
+wallImage = pygame.image.load('imgs/grass4.png')
+sucoglup_image = pygame.image.load('imgs/sucoglup.webp')
+
+GROUND_IMAGE_SIZE = (cell_size, cell_size)
+RAT_IMAGE_SIZE = (cell_size, cell_size)
+CHEESE_IMAGE_SIZE = (cell_size, cell_size)
+WALL_IMAGE_SIZE = (cell_size, cell_size)
+SUCOGLUP_IMAGE_SIZE = (cell_size, cell_size)
+
+# redimensionamento das imagens
+ground_image = pygame.transform.scale(ground_image, GROUND_IMAGE_SIZE)
+rat_image = pygame.transform.scale(rat_image, RAT_IMAGE_SIZE)
+cheeseImage = pygame.transform.scale(cheeseImage, CHEESE_IMAGE_SIZE)
+wallImage = pygame.transform.scale(wallImage, WALL_IMAGE_SIZE)
+sucoglup_image = pygame.transform.scale(sucoglup_image, SUCOGLUP_IMAGE_SIZE)
+
+# Inicialize as posições iniciais
+positionRX = positionRX * cell_size
+positionRY = positionRY * cell_size
+positionCX = positionCX * cell_size
+positionCY = positionCY * cell_size
+
+pygame.time.wait(100) # Tempo pra inicializar a aplicação (em milissegundos)
+pixels = cell_size  # Tamanho do movimento baseado na célula
+
+visited_cells = [[False] * w for _ in range(h)]
+
+def mark_visited(maze, positionRX, positionRY):
+    # Marca a célula como visitada e retorna True
+    visited_cells[positionRY // cell_size][positionRX // cell_size] = True
+    return visited_cells
+
+def clear_previous_movement(maze, rat_positions):
+    # Remove a marcação de células visitadas durante o movimento anterior
+    if len(rat_positions) > 1:
+        prev_x, prev_y, _ = rat_positions[-2]
+        maze[prev_y // cell_size][prev_x // cell_size] = 0  # Marca a célula anterior como não visitada
+
+def get_valid_moves(positionRX, positionRY):
+    moves = []
+    for dx, dy in directions:
+        new_x = positionRX + dx * cell_size
+        new_y = positionRY + dy * cell_size
+        new_x_index = new_x // cell_size
+        new_y_index = new_y // cell_size
+
+        if (
+            0 <= new_x < width - RAT_IMAGE_SIZE[0]
+            and 0 <= new_y < height - RAT_IMAGE_SIZE[1]
+            and maze[new_y_index][new_x_index] in (0, 3)
+            and not visited_cells[new_y_index][new_x_index]
+        ):
+            moves.append(((new_x, new_y), (dx, dy)))
+
+    return moves
+
+def tocar_som_vitoria():
+    global som_reproduzido
+    if not som_reproduzido:
+        victory_royale.play()
+        som_reproduzido = True
+
+
+last_move_time = time.time()
+
+# Crie uma pilha vazia para armazenar as posições do rato
+rat_positions = deque()
+
+# Crie uma lista para armazenar as coordenadas corretas do caminho do rato
+correct_path = []
+
+# Inicialize com uma direção padrão
+last_direction = (1, 0)
+
+found_cheese = False  # Variável de controle
+message_display_time = None
+
+
+
+running = True
+
+while running:
+    screen.fill(color)
+
+    for i in range(h):
+        for j in range(w):
+            x = j * cell_size
+            y = i * cell_size
+            if maze[i][j] == 1:
+                screen.blit(wallImage, (x, y))
+
+    current_time = time.time()
+
     
-grid_cells = [Cell(col, row) for row in range(rows) for col in range(cols)]
-current_cell = grid_cells[0]
-stack = [Stack]
 
-while True:
-    
-    sc.fill(pygame.Color('black'))
+    if current_time - last_move_time > 0.10 and not found_cheese:
+        valid_moves = get_valid_moves(positionRX, positionRY)
 
+        if valid_moves:
+            next_move, next_direction = valid_moves[0]
+            new_x, new_y = next_move
+
+            # Adicione a nova posição à lista de coordenadas corretas
+            correct_path.append((positionRX, positionRY))
+
+            # Atualize a posição e a direção
+            positionRX = new_x
+            positionRY = new_y
+            last_direction = next_direction
+
+            # Adicione a nova posição e direção à pilha
+            rat_positions.append((positionRX, positionRY, last_direction))
+
+            # Marque a célula como visitada
+            mark_visited(maze, positionRX, positionRY)
+        else:
+            if len(rat_positions) > 1:
+                # Remova o penúltimo movimento da pilha
+                rat_positions.pop()
+
+                # Recupere a última direção válida
+                last_x, last_y, last_direction = rat_positions[-1]
+
+                # Atualize a posição do rato
+                positionRX = last_x
+                positionRY = last_y
+
+                # Adicione a nova posição à lista de coordenadas corretas
+                correct_path.append((positionRX, positionRY))
+
+            # Marque a célula como visitada
+            mark_visited(maze, positionRX, positionRY)
+
+        last_move_time = current_time
+
+    screen.blit(rat_image, (positionRX, positionRY))
+    screen.blit(cheeseImage, (positionCX, positionCY))
+
+    # Exibir uma mensagem se o queijo foi encontrado
+    if (positionRX, positionRY) == (positionCX, positionCY) and not found_cheese:
+        found_cheese = True
+        message_display_time = pygame.time.get_ticks()
+
+    if message_display_time is not None:
+        current_ticks = pygame.time.get_ticks()
+        if current_ticks - message_display_time < 10000:  # Exibir por 10 segundos
+
+            for x, y in correct_path:
+                screen.blit(sucoglup_image, (x, y))
+            
+                
+            file_path = 'right_way.txt'
+            with open(file_path, 'w') as file:
+                for x, y in correct_path:
+                    file.write(f"{x},{y}\n")
+        else:
+            message_display_time = None  # Ocultar a mensagem após 10 segundos
+            
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            exit()
-
-    draw_maze(maze_cells)
-
-    #[cell.draw() for cell in grid_cells]
-    current_cell.visited = True
-    #current_cell.draw_current_cell()
-
-    exit_cell = grid_cells[-1]
-    if current_cell == exit_cell:
+            running = False
+            pygame.quit()
+            quit()
         
-        break
-
-    next_cell = current_cell.check_neighbors()
-    if next_cell:
-        next_cell.visited = True
-        stack.append(current_cell)
-        remove_walls(current_cell, next_cell)
-        current_cell = next_cell
-    elif stack:
-        current_cell = stack.pop()
-
-    x, y = exit_cell.x * TILE, exit_cell.y * TILE
-    pygame.draw.rect(sc, pygame.Color('green'), (x + 2, y + 2, TILE - 2, TILE - 2))
-    pygame.display.flip()
-
-    pygame.display.flip()
-    clock.tick(30)
-
-
-# Exibir a mensagem
-sc.fill(pygame.Color('black'))
-font = pygame.font.Font(None, 36)
-text = font.render("GUSTAVO É VIADO", True, pygame.Color('white'))
-text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
-sc.blit(text, text_rect)
-pygame.display.flip()
-
-# Aguardar um tempo antes de fechar a janela (por exemplo, 3 segundos)
-pygame.time.delay(3000)
-
-# Encerrar o jogo
-pygame.quit()
-
+    if positionRX == positionCX and positionRY == positionCY:
+        tocar_som_vitoria()
+        posicao_imagem = ((width - largura_imagem) // 2, 1)
+        screen.blit(imagem_fim_jogo, (posicao_imagem))
     
-
+    pygame.display.update()
