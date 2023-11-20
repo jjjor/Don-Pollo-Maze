@@ -33,7 +33,7 @@ def load_maze_from_file(filename):
     w = len(maze[0])
     return maze, h, w, positionRX, positionRY, positionCX, positionCY
 
-maze, h, w, positionRX, positionRY, positionCX, positionCY = load_maze_from_file('labirinto.txt')
+maze, h, w, positionRX, positionRY, positionCX, positionCY = load_maze_from_file('labirintoteste.txt')
 
 cell_size = min(1200 // w, 720 // h)
 width = w * cell_size
@@ -48,8 +48,6 @@ largura_imagem = 200
 altura_imagem = 100
 imagem_fim_jogo = pygame.image.load("imgs/vitoria.png")
 imagem_fim_jogo = pygame.transform.scale(imagem_fim_jogo, (largura_imagem, altura_imagem))
-
-
 
 # background screen color
 color = (1,0,0)
@@ -73,27 +71,27 @@ cheeseImage = pygame.transform.scale(cheeseImage, CHEESE_IMAGE_SIZE)
 wallImage = pygame.transform.scale(wallImage, WALL_IMAGE_SIZE)
 sucoglup_image = pygame.transform.scale(sucoglup_image, SUCOGLUP_IMAGE_SIZE)
 
-# Inicialize as posições iniciais
+# posições iniciais
 positionRX = positionRX * cell_size
 positionRY = positionRY * cell_size
 positionCX = positionCX * cell_size
 positionCY = positionCY * cell_size
 
-pygame.time.wait(100) # Tempo pra inicializar a aplicação (em milissegundos)
-pixels = cell_size  # Tamanho do movimento baseado na célula
+pygame.time.wait(100)
+pixels = cell_size
 
 visited_cells = [[False] * w for _ in range(h)]
 
 def mark_visited(maze, positionRX, positionRY):
-    # Marca a célula como visitada e retorna True
+
     visited_cells[positionRY // cell_size][positionRX // cell_size] = True
     return visited_cells
 
 def clear_previous_movement(maze, rat_positions):
-    # Remove a marcação de células visitadas durante o movimento anterior
+
     if len(rat_positions) > 1:
         prev_x, prev_y, _ = rat_positions[-2]
-        maze[prev_y // cell_size][prev_x // cell_size] = 0  # Marca a célula anterior como não visitada
+        maze[prev_y // cell_size][prev_x // cell_size] = 0
 
 def get_valid_moves(positionRX, positionRY):
     moves = []
@@ -122,16 +120,13 @@ def tocar_som_vitoria():
 
 last_move_time = time.time()
 
-# Crie uma pilha vazia para armazenar as posições do rato
 rat_positions = deque()
 
-# Crie uma lista para armazenar as coordenadas corretas do caminho do rato
 correct_path = []
 
-# Inicialize com uma direção padrão
 last_direction = (1, 0)
 
-found_cheese = False  # Variável de controle
+found_cheese = False  
 message_display_time = None
 
 
@@ -159,35 +154,28 @@ while running:
             next_move, next_direction = valid_moves[0]
             new_x, new_y = next_move
 
-            # Adicione a nova posição à lista de coordenadas corretas
             correct_path.append((positionRX, positionRY))
 
-            # Atualize a posição e a direção
             positionRX = new_x
             positionRY = new_y
             last_direction = next_direction
 
-            # Adicione a nova posição e direção à pilha
             rat_positions.append((positionRX, positionRY, last_direction))
 
-            # Marque a célula como visitada
             mark_visited(maze, positionRX, positionRY)
         else:
             if len(rat_positions) > 1:
-                # Remova o penúltimo movimento da pilha
+                
                 rat_positions.pop()
 
-                # Recupere a última direção válida
                 last_x, last_y, last_direction = rat_positions[-1]
 
-                # Atualize a posição do rato
                 positionRX = last_x
                 positionRY = last_y
 
-                # Adicione a nova posição à lista de coordenadas corretas
                 correct_path.append((positionRX, positionRY))
 
-            # Marque a célula como visitada
+            
             mark_visited(maze, positionRX, positionRY)
 
         last_move_time = current_time
@@ -195,25 +183,24 @@ while running:
     screen.blit(rat_image, (positionRX, positionRY))
     screen.blit(cheeseImage, (positionCX, positionCY))
 
-    # Exibir uma mensagem se o queijo foi encontrado
+    
     if (positionRX, positionRY) == (positionCX, positionCY) and not found_cheese:
         found_cheese = True
         message_display_time = pygame.time.get_ticks()
 
     if message_display_time is not None:
         current_ticks = pygame.time.get_ticks()
-        if current_ticks - message_display_time < 10000:  # Exibir por 10 segundos
+        if current_ticks - message_display_time < 10000:
 
             for x, y in correct_path:
                 screen.blit(sucoglup_image, (x, y))
             
-                
             file_path = 'right_way.txt'
             with open(file_path, 'w') as file:
                 for x, y in correct_path:
                     file.write(f"{x},{y}\n")
         else:
-            message_display_time = None  # Ocultar a mensagem após 10 segundos
+            message_display_time = None
             
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
